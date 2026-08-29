@@ -191,6 +191,7 @@ export const PERMISO_LABEL: Record<PermisoModulo, string> = {
   roomservice: 'Room Service',
   recepcion: 'Recepción',
   admin: 'Administración',
+  mantenimiento: 'Mantenimiento',
 };
 
 /* =========================================================

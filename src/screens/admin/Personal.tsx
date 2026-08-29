@@ -18,7 +18,7 @@ import {
 
 const ROLES: RolPersonal[] = ['Recepción', 'Limpieza', 'Room Service', 'Mantenimiento', 'Administración'];
 const TURNOS: TurnoPersonal[] = ['Mañana', 'Tarde', 'Noche'];
-const PERMISOS: PermisoModulo[] = ['limpieza', 'roomservice', 'recepcion', 'admin'];
+const PERMISOS: PermisoModulo[] = ['limpieza', 'roomservice', 'recepcion', 'admin', 'mantenimiento'];
 const ASISTENCIAS: EstadoAsistencia[] = ['presente', 'ausente', 'descanso', 'pendiente'];
 
 interface Props {

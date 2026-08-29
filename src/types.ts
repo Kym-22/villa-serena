@@ -48,6 +48,9 @@ export interface Incidencia {
   hora: string;
   estado: EstadoIncidencia;
   impideUso: boolean;
+  // Área que reportó la incidencia. Opcional: si falta se asume Limpieza,
+  // que es el único módulo que las registraba antes de Mantenimiento.
+  area?: AreaSolicitud;
 }
 
 export interface ObjetoOlvidado {
@@ -74,7 +77,7 @@ export type Pantalla = 'inicio' | 'mapa' | 'solicitudes' | 'incidencias' | 'obje
    ROOM SERVICE
    ========================================================= */
 
-export type Modulo = 'limpieza' | 'roomservice' | 'recepcion' | 'admin';
+export type Modulo = 'limpieza' | 'roomservice' | 'recepcion' | 'admin' | 'mantenimiento';
 
 export type EstadoPedido =
   | 'nuevo'
@@ -297,7 +300,7 @@ export type RolPersonal =
 
 export type TurnoPersonal = 'Mañana' | 'Tarde' | 'Noche';
 
-export type PermisoModulo = 'limpieza' | 'roomservice' | 'recepcion' | 'admin';
+export type PermisoModulo = 'limpieza' | 'roomservice' | 'recepcion' | 'admin' | 'mantenimiento';
 
 export type EstadoAsistencia = 'presente' | 'ausente' | 'descanso' | 'pendiente';
 
@@ -338,4 +341,116 @@ export interface MovimientoInsumo {
   cantidad: number;
   motivo: string;
   fecha: string; // ISO
+}
+
+/* =========================================================
+   MANTENIMIENTO
+   ========================================================= */
+
+export type SeccionMant = 'panel' | 'incidencias' | 'ordenes' | 'preventivo' | 'activos';
+
+export type EstadoOT =
+  | 'abierta'
+  | 'asignada'
+  | 'en-proceso'
+  | 'resuelta'
+  | 'cerrada'
+  | 'cancelada';
+
+export type OrigenOT = 'incidencia' | 'interna' | 'preventivo';
+
+export type TipoAveria =
+  | 'Fuga de agua'
+  | 'Avería técnica'
+  | 'Daño en mobiliario'
+  | 'Problema eléctrico'
+  | 'Otro';
+
+export type CategoriaActivo =
+  | 'Climatización'
+  | 'Electricidad'
+  | 'Fontanería'
+  | 'Mobiliario'
+  | 'Ascensores'
+  | 'Cocina';
+
+export type EstadoActivo = 'operativo' | 'en-reparacion' | 'fuera-servicio';
+
+export type FrecuenciaPreventivo =
+  | 'semanal'
+  | 'mensual'
+  | 'trimestral'
+  | 'semestral'
+  | 'anual';
+
+export interface CambioEstadoOT {
+  estado: EstadoOT;
+  fechaHora: string; // ISO
+  responsable: string;
+  nota?: string;
+}
+
+// Repuestos propios del módulo. En esta ronda son informativos:
+// no descuentan del inventario de Administración (queda para la ronda 2).
+export interface Repuesto {
+  id: string;
+  nombre: string;
+  unidad: string;
+  stock: number;
+  costoUnitario: number;
+}
+
+export interface RepuestoUsado {
+  repuestoId: string;
+  nombre: string;
+  cantidad: number;
+  costoUnitario: number;
+}
+
+export interface OrdenTrabajo {
+  id: string;
+  codigo: string; // OT-0001
+  ubicacion: string; // número de habitación o área común
+  esHabitacion: boolean;
+  tipo: TipoAveria;
+  descripcion: string;
+  prioridad: PrioridadIncidencia; // alta | media | baja
+  origen: OrigenOT;
+  incidenciaId?: string;
+  activoId?: string;
+  tareaPreventivaId?: string;
+  impideUso: boolean;
+  // Área de la que provino el reporte que originó la orden.
+  area?: AreaSolicitud;
+  estado: EstadoOT;
+  tecnicoId: string | null;
+  fechaCompromiso: string; // YYYY-MM-DD
+  solucion?: string;
+  minutosEmpleados?: number;
+  motivoCancelacion?: string;
+  repuestos: RepuestoUsado[];
+  creadaEn: string; // ISO
+  cerradaEn?: string; // ISO
+  historial: CambioEstadoOT[];
+}
+
+export interface Activo {
+  id: string;
+  nombre: string;
+  categoria: CategoriaActivo;
+  ubicacion: string;
+  marcaModelo: string;
+  instaladoEn: string; // YYYY-MM-DD
+  estado: EstadoActivo;
+}
+
+export interface TareaPreventiva {
+  id: string;
+  nombre: string;
+  activoId: string | null;
+  ubicacion: string;
+  frecuencia: FrecuenciaPreventivo;
+  proximaEjecucion: string; // YYYY-MM-DD
+  ultimaEjecucion?: string; // YYYY-MM-DD
+  activa: boolean;
 }

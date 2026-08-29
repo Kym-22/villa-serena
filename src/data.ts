@@ -17,6 +17,12 @@ import type {
   Empleado,
   Insumo,
   MovimientoInsumo,
+  OrdenTrabajo,
+  Activo,
+  TareaPreventiva,
+  Repuesto,
+  EstadoOT,
+  CambioEstadoOT,
 } from "./types"
 
 /* =========================================================
@@ -1182,11 +1188,11 @@ export const EMPLEADOS_INICIALES: Empleado[] = [
   { id: "em-3", nombre: "Laura Méndez", rol: "Limpieza", turno: "Tarde", telefono: "+502 5512 0003", activo: true, permisos: ["limpieza"], tareasCompletadas: 28, tareasAsignadas: 30, puntualidadPct: 92, asistencia: "presente" },
   { id: "em-4", nombre: "Diego Fuentes", rol: "Room Service", turno: "Tarde", telefono: "+502 5512 0004", activo: true, permisos: ["roomservice"], tareasCompletadas: 19, tareasAsignadas: 22, puntualidadPct: 88, asistencia: "presente" },
   { id: "em-5", nombre: "Marco Solís", rol: "Room Service", turno: "Noche", telefono: "+502 5512 0005", activo: true, permisos: ["roomservice"], tareasCompletadas: 12, tareasAsignadas: 15, puntualidadPct: 90, asistencia: "descanso" },
-  { id: "em-6", nombre: "Rodrigo Paz", rol: "Mantenimiento", turno: "Mañana", telefono: "+502 5512 0006", activo: true, permisos: ["recepcion"], tareasCompletadas: 9, tareasAsignadas: 11, puntualidadPct: 85, asistencia: "presente" },
+  { id: "em-6", nombre: "Rodrigo Paz", rol: "Mantenimiento", turno: "Mañana", telefono: "+502 5512 0006", activo: true, permisos: ["mantenimiento"], tareasCompletadas: 9, tareasAsignadas: 11, puntualidadPct: 85, asistencia: "presente" },
   { id: "em-7", nombre: "Elena Ríos", rol: "Recepción", turno: "Noche", telefono: "+502 5512 0007", activo: true, permisos: ["recepcion"], tareasCompletadas: 17, tareasAsignadas: 18, puntualidadPct: 97, asistencia: "presente" },
   { id: "em-8", nombre: "Tomás Aguilar", rol: "Limpieza", turno: "Noche", telefono: "+502 5512 0008", activo: false, permisos: ["limpieza"], tareasCompletadas: 0, tareasAsignadas: 0, puntualidadPct: 0, asistencia: "ausente" },
   { id: "em-9", nombre: "Valeria Cano", rol: "Administración", turno: "Mañana", telefono: "+502 5512 0009", activo: true, permisos: ["admin", "recepcion", "roomservice", "limpieza"], tareasCompletadas: 14, tareasAsignadas: 14, puntualidadPct: 100, asistencia: "presente" },
-  { id: "em-10", nombre: "Iván Torres", rol: "Mantenimiento", turno: "Tarde", telefono: "+502 5512 0010", activo: true, permisos: ["recepcion"], tareasCompletadas: 6, tareasAsignadas: 10, puntualidadPct: 80, asistencia: "pendiente" },
+  { id: "em-10", nombre: "Iván Torres", rol: "Mantenimiento", turno: "Tarde", telefono: "+502 5512 0010", activo: true, permisos: ["mantenimiento"], tareasCompletadas: 6, tareasAsignadas: 10, puntualidadPct: 80, asistencia: "pendiente" },
 ]
 
 /* =========================================================
@@ -1219,4 +1225,303 @@ export const MOVIMIENTOS_INSUMO_INICIALES: MovimientoInsumo[] = [
   { id: "mv-4", insumoId: "in-15", tipo: "merma", cantidad: 3, motivo: "Paquete dañado en bodega", fecha: fechaRelativaISO(-2) + "T16:40:00.000Z" },
   { id: "mv-5", insumoId: "in-6", tipo: "salida", cantidad: 25, motivo: "Reposición de amenities", fecha: fechaRelativaISO(0) + "T10:05:00.000Z" },
   { id: "mv-6", insumoId: "in-1", tipo: "entrada", cantidad: 12, motivo: "Retorno de lavandería externa", fecha: fechaRelativaISO(-3) + "T11:20:00.000Z" },
+]
+
+/* =========================================================
+   MANTENIMIENTO — DATOS SEMILLA
+   ========================================================= */
+
+export const ENCARGADO_MANT = "Rodrigo Paz"
+
+// Los técnicos salen de EMPLEADOS_INICIALES (los de rol "Mantenimiento").
+export const TECNICOS_MANT_IDS = ["em-6", "em-10"]
+
+// Correlativo de órdenes de trabajo. Arranca en 8 porque ese es el
+// número de órdenes que ya existen en los datos semilla.
+let _correlativoOT = 8
+export function siguienteCodigoOT(): string {
+  _correlativoOT += 1
+  return `OT-${String(_correlativoOT).padStart(4, "0")}`
+}
+
+function isoRel(dias: number, hora: string): string {
+  return `${fechaRelativaISO(dias)}T${hora}:00.000Z`
+}
+
+function histOT(pasos: [EstadoOT, number, string][], responsable: string): CambioEstadoOT[] {
+  return pasos.map(([estado, dias, hora]) => ({
+    estado,
+    fechaHora: isoRel(dias, hora),
+    responsable,
+  }))
+}
+
+/* --- Bandeja de incidencias -------------------------------------------
+   Parte de las que reporta Limpieza y suma las de otras áreas.
+   Al ser un módulo aislado esto es una copia, no el mismo estado de App.tsx. */
+
+export const INCIDENCIAS_MANT_INICIALES: Incidencia[] = [
+  ...INCIDENCIAS_INICIALES.map(i => ({ ...i, area: i.area ?? ("Limpieza" as const) })),
+  {
+    id: "i4",
+    habitacionNumero: "203",
+    tipo: "Problema eléctrico",
+    descripcion: "El tomacorriente junto a la cama no da corriente.",
+    prioridad: "media",
+    hora: "11:20 a. m.",
+    estado: "pendiente",
+    impideUso: false,
+    area: "Recepción",
+  },
+  {
+    id: "i5",
+    habitacionNumero: "301",
+    tipo: "Avería técnica",
+    descripcion: "La televisión no enciende. El huésped ya lo reportó dos veces.",
+    prioridad: "baja",
+    hora: "09:40 a. m.",
+    estado: "pendiente",
+    impideUso: false,
+    area: "Recepción",
+  },
+  {
+    id: "i6",
+    habitacionNumero: "102",
+    tipo: "Fuga de agua",
+    descripcion: "Goteo constante en la regadera, no cierra del todo.",
+    prioridad: "media",
+    hora: "08:15 a. m.",
+    estado: "pendiente",
+    impideUso: false,
+    area: "Limpieza",
+  },
+  {
+    id: "i7",
+    habitacionNumero: "Piscina",
+    tipo: "Avería técnica",
+    descripcion: "La bomba de filtrado hace un ruido anormal desde ayer.",
+    prioridad: "alta",
+    hora: "07:30 a. m.",
+    estado: "pendiente",
+    impideUso: false,
+    area: "Recepción",
+  },
+]
+
+/* --- Activos y equipos ------------------------------------------------ */
+
+export const ACTIVOS_INICIALES: Activo[] = [
+  { id: "ac-1",  nombre: "Aire acondicionado hab. 105",   categoria: "Climatización", ubicacion: "Habitación 105", marcaModelo: "LG S4-W12JA3AA",     instaladoEn: "2022-03-15", estado: "en-reparacion" },
+  { id: "ac-2",  nombre: "Aire acondicionado hab. 204",   categoria: "Climatización", ubicacion: "Habitación 204", marcaModelo: "LG S4-W12JA3AA",     instaladoEn: "2022-03-15", estado: "operativo" },
+  { id: "ac-3",  nombre: "Caldera principal",             categoria: "Fontanería",    ubicacion: "Sótano",         marcaModelo: "Bosch Therm 8000",   instaladoEn: "2019-08-02", estado: "operativo" },
+  { id: "ac-4",  nombre: "Bomba de agua",                 categoria: "Fontanería",    ubicacion: "Sótano",         marcaModelo: "Pedrollo CPm 620",   instaladoEn: "2021-01-20", estado: "operativo" },
+  { id: "ac-5",  nombre: "Ascensor principal",            categoria: "Ascensores",    ubicacion: "Torre A",        marcaModelo: "Otis Gen2 Comfort",  instaladoEn: "2018-11-10", estado: "operativo" },
+  { id: "ac-6",  nombre: "Tablero eléctrico general",     categoria: "Electricidad",  ubicacion: "Sótano",         marcaModelo: "Schneider Easy9",    instaladoEn: "2018-11-10", estado: "operativo" },
+  { id: "ac-7",  nombre: "Planta eléctrica de emergencia", categoria: "Electricidad", ubicacion: "Azotea",         marcaModelo: "Honda EU70is",       instaladoEn: "2020-06-05", estado: "operativo" },
+  { id: "ac-8",  nombre: "Campana extractora de cocina",  categoria: "Cocina",        ubicacion: "Restaurante",    marcaModelo: "Franke FTU 3807",    instaladoEn: "2021-09-12", estado: "operativo" },
+  { id: "ac-9",  nombre: "Refrigerador industrial",       categoria: "Cocina",        ubicacion: "Restaurante",    marcaModelo: "Torrey R-24",        instaladoEn: "2020-02-28", estado: "fuera-servicio" },
+  { id: "ac-10", nombre: "Mobiliario Suite 301",          categoria: "Mobiliario",    ubicacion: "Habitación 301", marcaModelo: "Roble macizo",       instaladoEn: "2023-04-18", estado: "operativo" },
+]
+
+/* --- Plan de mantenimiento preventivo --------------------------------- */
+
+export const TAREAS_PREVENTIVAS_INICIALES: TareaPreventiva[] = [
+  { id: "tp-1", nombre: "Limpieza de filtros de aire acondicionado", activoId: "ac-2",  ubicacion: "Pisos 1 a 3",   frecuencia: "mensual",    proximaEjecucion: fechaRelativaISO(-3), ultimaEjecucion: fechaRelativaISO(-33), activa: true },
+  { id: "tp-2", nombre: "Revisión de caldera y presión",             activoId: "ac-3",  ubicacion: "Sótano",        frecuencia: "trimestral", proximaEjecucion: fechaRelativaISO(5),  ultimaEjecucion: fechaRelativaISO(-85), activa: true },
+  { id: "tp-3", nombre: "Mantenimiento de ascensor",                 activoId: "ac-5",  ubicacion: "Torre A",       frecuencia: "mensual",    proximaEjecucion: fechaRelativaISO(-1), ultimaEjecucion: fechaRelativaISO(-31), activa: true },
+  { id: "tp-4", nombre: "Inspección de tablero eléctrico",           activoId: "ac-6",  ubicacion: "Sótano",        frecuencia: "semestral",  proximaEjecucion: fechaRelativaISO(21), ultimaEjecucion: fechaRelativaISO(-160), activa: true },
+  { id: "tp-5", nombre: "Prueba de planta de emergencia",            activoId: "ac-7",  ubicacion: "Azotea",        frecuencia: "mensual",    proximaEjecucion: fechaRelativaISO(12), ultimaEjecucion: fechaRelativaISO(-18), activa: true },
+  { id: "tp-6", nombre: "Desengrase de campana extractora",          activoId: "ac-8",  ubicacion: "Restaurante",   frecuencia: "trimestral", proximaEjecucion: fechaRelativaISO(2),  ultimaEjecucion: fechaRelativaISO(-88), activa: true },
+  { id: "tp-7", nombre: "Repintado de fachada",                      activoId: null,    ubicacion: "Exterior",      frecuencia: "anual",      proximaEjecucion: fechaRelativaISO(140), activa: false },
+]
+
+/* --- Repuestos (informativos en esta ronda) --------------------------- */
+
+export const REPUESTOS_INICIALES: Repuesto[] = [
+  { id: "rp-1", nombre: "Filtro de aire acondicionado", unidad: "unidad", stock: 14, costoUnitario: 8.5 },
+  { id: "rp-2", nombre: "Empaque de grifo",             unidad: "unidad", stock: 40, costoUnitario: 1.2 },
+  { id: "rp-3", nombre: "Bombilla LED 9 W",             unidad: "unidad", stock: 65, costoUnitario: 2.4 },
+  { id: "rp-4", nombre: "Interruptor simple",           unidad: "unidad", stock: 22, costoUnitario: 3.1 },
+  { id: "rp-5", nombre: "Sifón de lavabo",              unidad: "unidad", stock: 9,  costoUnitario: 6.8 },
+  { id: "rp-6", nombre: "Cerradura electrónica",        unidad: "unidad", stock: 4,  costoUnitario: 85.0 },
+  { id: "rp-7", nombre: "Manguera flexible 1/2\"",      unidad: "unidad", stock: 17, costoUnitario: 4.5 },
+  { id: "rp-8", nombre: "Silicona sanitaria",           unidad: "tubo",   stock: 11, costoUnitario: 3.9 },
+]
+
+/* --- Órdenes de trabajo ------------------------------------------------
+   Cubren los 6 estados posibles, con una atrasada (OT-0003) y una que
+   mantiene una habitación fuera de servicio (OT-0001).                  */
+
+export const ORDENES_INICIALES: OrdenTrabajo[] = [
+  {
+    id: "ot-1",
+    codigo: "OT-0001",
+    ubicacion: "105",
+    esHabitacion: true,
+    tipo: "Avería técnica",
+    descripcion: "El equipo de aire acondicionado no enfría. Se sospecha del compresor.",
+    prioridad: "alta",
+    origen: "incidencia",
+    incidenciaId: "i2",
+    activoId: "ac-1",
+    impideUso: true,
+    area: "Limpieza",
+    estado: "en-proceso",
+    tecnicoId: "em-6",
+    fechaCompromiso: fechaHoyISO(),
+    repuestos: [],
+    creadaEn: isoRel(-1, "09:05"),
+    historial: histOT(
+      [["abierta", -1, "09:05"], ["asignada", -1, "09:30"], ["en-proceso", 0, "08:10"]],
+      "Rodrigo Paz",
+    ),
+  },
+  {
+    id: "ot-2",
+    codigo: "OT-0002",
+    ubicacion: "302",
+    esHabitacion: true,
+    tipo: "Daño en mobiliario",
+    descripcion: "Espejo del baño con grieta visible. Riesgo de corte para el huésped.",
+    prioridad: "media",
+    origen: "incidencia",
+    incidenciaId: "i3",
+    impideUso: false,
+    area: "Limpieza",
+    estado: "cerrada",
+    tecnicoId: "em-10",
+    fechaCompromiso: fechaRelativaISO(-2),
+    solucion: "Se retiró el espejo dañado y se instaló uno nuevo del mismo tamaño.",
+    minutosEmpleados: 75,
+    repuestos: [{ repuestoId: "rp-8", nombre: "Silicona sanitaria", cantidad: 1, costoUnitario: 3.9 }],
+    creadaEn: isoRel(-3, "08:50"),
+    cerradaEn: isoRel(-2, "16:20"),
+    historial: histOT(
+      [["abierta", -3, "08:50"], ["asignada", -3, "09:15"], ["en-proceso", -2, "10:00"], ["resuelta", -2, "14:40"], ["cerrada", -2, "16:20"]],
+      "Iván Torres",
+    ),
+  },
+  {
+    id: "ot-3",
+    codigo: "OT-0003",
+    ubicacion: "Torre A",
+    esHabitacion: false,
+    tipo: "Avería técnica",
+    descripcion: "Mantenimiento mensual del ascensor principal según el plan preventivo.",
+    prioridad: "media",
+    origen: "preventivo",
+    tareaPreventivaId: "tp-3",
+    activoId: "ac-5",
+    impideUso: false,
+    estado: "asignada",
+    tecnicoId: "em-6",
+    fechaCompromiso: fechaRelativaISO(-2),
+    repuestos: [],
+    creadaEn: isoRel(-5, "07:00"),
+    historial: histOT([["abierta", -5, "07:00"], ["asignada", -5, "07:45"]], "Rodrigo Paz"),
+  },
+  {
+    id: "ot-4",
+    codigo: "OT-0004",
+    ubicacion: "103",
+    esHabitacion: true,
+    tipo: "Problema eléctrico",
+    descripcion: "La lámpara del escritorio parpadea de forma intermitente.",
+    prioridad: "media",
+    origen: "interna",
+    impideUso: false,
+    estado: "abierta",
+    tecnicoId: null,
+    fechaCompromiso: fechaRelativaISO(1),
+    repuestos: [],
+    creadaEn: isoRel(0, "07:50"),
+    historial: histOT([["abierta", 0, "07:50"]], "Rodrigo Paz"),
+  },
+  {
+    id: "ot-5",
+    codigo: "OT-0005",
+    ubicacion: "Restaurante",
+    esHabitacion: false,
+    tipo: "Avería técnica",
+    descripcion: "El refrigerador industrial no mantiene la temperatura. Riesgo para los alimentos.",
+    prioridad: "alta",
+    origen: "interna",
+    activoId: "ac-9",
+    impideUso: false,
+    estado: "asignada",
+    tecnicoId: "em-10",
+    fechaCompromiso: fechaHoyISO(),
+    repuestos: [],
+    creadaEn: isoRel(0, "06:40"),
+    historial: histOT([["abierta", 0, "06:40"], ["asignada", 0, "07:10"]], "Rodrigo Paz"),
+  },
+  {
+    id: "ot-6",
+    codigo: "OT-0006",
+    ubicacion: "201",
+    esHabitacion: true,
+    tipo: "Fuga de agua",
+    descripcion: "Goteo en la unión del sifón del lavabo.",
+    prioridad: "baja",
+    origen: "incidencia",
+    impideUso: false,
+    area: "Limpieza",
+    estado: "resuelta",
+    tecnicoId: "em-6",
+    fechaCompromiso: fechaHoyISO(),
+    solucion: "Se reemplazó el sifón y se selló la unión. Sin fugas tras 20 minutos de prueba.",
+    minutosEmpleados: 45,
+    repuestos: [
+      { repuestoId: "rp-5", nombre: "Sifón de lavabo", cantidad: 1, costoUnitario: 6.8 },
+      { repuestoId: "rp-8", nombre: "Silicona sanitaria", cantidad: 1, costoUnitario: 3.9 },
+    ],
+    creadaEn: isoRel(-1, "13:25"),
+    historial: histOT(
+      [["abierta", -1, "13:25"], ["asignada", -1, "13:50"], ["en-proceso", 0, "09:15"], ["resuelta", 0, "10:00"]],
+      "Rodrigo Paz",
+    ),
+  },
+  {
+    id: "ot-7",
+    codigo: "OT-0007",
+    ubicacion: "106",
+    esHabitacion: true,
+    tipo: "Daño en mobiliario",
+    descripcion: "Pata de la silla del escritorio floja.",
+    prioridad: "baja",
+    origen: "interna",
+    impideUso: false,
+    estado: "cancelada",
+    tecnicoId: null,
+    fechaCompromiso: fechaRelativaISO(-1),
+    motivoCancelacion: "La silla fue reemplazada por completo desde Administración.",
+    repuestos: [],
+    creadaEn: isoRel(-4, "11:00"),
+    historial: histOT([["abierta", -4, "11:00"], ["cancelada", -3, "09:20"]], "Rodrigo Paz"),
+  },
+  {
+    id: "ot-8",
+    codigo: "OT-0008",
+    ubicacion: "Pisos 1 a 3",
+    esHabitacion: false,
+    tipo: "Avería técnica",
+    descripcion: "Limpieza mensual de filtros de aire acondicionado en todas las habitaciones.",
+    prioridad: "baja",
+    origen: "preventivo",
+    tareaPreventivaId: "tp-1",
+    activoId: "ac-2",
+    impideUso: false,
+    estado: "cerrada",
+    tecnicoId: "em-10",
+    fechaCompromiso: fechaRelativaISO(-30),
+    solucion: "Se limpiaron 15 filtros y se reemplazaron 3 en mal estado.",
+    minutosEmpleados: 240,
+    repuestos: [{ repuestoId: "rp-1", nombre: "Filtro de aire acondicionado", cantidad: 3, costoUnitario: 8.5 }],
+    creadaEn: isoRel(-33, "08:00"),
+    cerradaEn: isoRel(-30, "15:30"),
+    historial: histOT(
+      [["abierta", -33, "08:00"], ["asignada", -32, "08:15"], ["en-proceso", -30, "09:00"], ["resuelta", -30, "14:50"], ["cerrada", -30, "15:30"]],
+      "Iván Torres",
+    ),
+  },
 ]
