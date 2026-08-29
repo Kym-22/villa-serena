@@ -1,0 +1,10 @@
+{
+  "description": "Organiza tus escritos por capítulos y realiza un seguimiento detallado del desarrollo de personajes para mejorar tu proceso creativo y narrativo.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
