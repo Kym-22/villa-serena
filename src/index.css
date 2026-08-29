@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+:root {
+  --navy: #18345C;
+  --navy-deep: #102747;
+  --butter: #F3D98B;
+  --gold: #D8B94E;
+  --slate: #AEBCC1;
+  --cream: #F8F6F0;
+  --text: #1F2933;
+
+  --estado-limpia-bg: #F0FAF4;
+  --estado-limpia-border: #86EFAC;
+  --estado-limpia-text: #166534;
+  --estado-pendiente-bg: #FFFBEF;
+  --estado-pendiente-border: #F3D98B;
+  --estado-pendiente-text: #78450A;
+  --estado-limpiando-bg: #EFF6FF;
+  --estado-limpiando-border: #93C5FD;
+  --estado-limpiando-text: #1E40AF;
+  --estado-inspeccion-bg: #F1F5F9;
+  --estado-inspeccion-border: #AEBCC1;
+  --estado-inspeccion-text: #475569;
+  --estado-fuera-bg: #FEF2F2;
+  --estado-fuera-border: #FCA5A5;
+  --estado-fuera-text: #991B1B;
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background-color: var(--cream);
+  color: var(--text);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #AEBCC1 transparent;
+}
+*::-webkit-scrollbar { width: 5px; height: 5px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background-color: #AEBCC1; border-radius: 2px; }
+
+.font-serif { font-family: 'Cormorant Garamond', Georgia, serif; }

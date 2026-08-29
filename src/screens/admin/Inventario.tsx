@@ -1,0 +1,353 @@
+import { useMemo, useState } from 'react';
+import type { Insumo, MovimientoInsumo, CategoriaInsumo, TipoMovimiento } from '../../types';
+import { formatoFechaHora } from '../../data';
+import {
+  dinero,
+  Chip,
+  Campo,
+  INPUT_CLS,
+  CATEGORIA_INSUMO,
+  diasHasta,
+  PlusIcon,
+  AlertIcon,
+} from './adminUtils';
+
+const DIAS_ALERTA_VENC = 30;
+const MOV_LABEL: Record<TipoMovimiento, string> = { entrada: 'Entrada', salida: 'Salida', merma: 'Merma' };
+
+interface Props {
+  insumos: Insumo[];
+  movimientos: MovimientoInsumo[];
+  onAgregarInsumo: (i: Omit<Insumo, 'id'>) => void;
+  onRegistrarMovimiento: (insumoId: string, tipo: TipoMovimiento, cantidad: number, motivo: string) => void;
+}
+
+export default function Inventario({ insumos, movimientos, onAgregarInsumo, onRegistrarMovimiento }: Props) {
+  const [filtro, setFiltro] = useState<CategoriaInsumo | 'todas'>('todas');
+  const [formMov, setFormMov] = useState(false);
+  const [formInsumo, setFormInsumo] = useState(false);
+
+  const bajoMinimo = useMemo(() => insumos.filter(i => i.stock <= i.stockMinimo), [insumos]);
+  const porVencer = useMemo(
+    () => insumos.filter(i => i.vencimiento && diasHasta(i.vencimiento) <= DIAS_ALERTA_VENC),
+    [insumos],
+  );
+  const valorTotal = insumos.reduce((s, i) => s + i.stock * i.costoUnitario, 0);
+
+  const visibles = insumos
+    .filter(i => filtro === 'todas' || i.categoria === filtro)
+    .sort((a, b) => Number(a.stock <= a.stockMinimo ? 0 : 1) - Number(b.stock <= b.stockMinimo ? 0 : 1) || a.nombre.localeCompare(b.nombre));
+
+  const movRecientes = [...movimientos].sort((a, b) => b.fecha.localeCompare(a.fecha)).slice(0, 8);
+  const insumoDe = useMemo(() => new Map(insumos.map(i => [i.id, i])), [insumos]);
+
+  return (
+    <div
+      className="flex-1 overflow-y-auto bg-[#F8F6F0]"
+      style={{ fontFamily: '"Afacad", "Segoe UI", Arial, sans-serif' }}
+    >
+      <div className="px-4 sm:px-6 py-5 bg-white border-b border-[#E5E0D8]">
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+          <div>
+            <h1 className="text-[32px] font-semibold text-[#18345C] leading-tight">Control de inventario</h1>
+            <p className="text-[14px] text-[#AEBCC1] mt-1">{insumos.length} insumos registrados</p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setFormMov(v => !v)}
+              className="flex items-center gap-2 px-3 py-2.5 text-[14px] font-semibold border border-[#18345C] text-[#18345C] rounded-md hover:bg-[#18345C] hover:text-white transition-colors"
+            >
+              Registrar movimiento
+            </button>
+            <button
+              onClick={() => setFormInsumo(v => !v)}
+              className="flex items-center gap-2 px-4 py-2.5 text-[15px] font-semibold bg-[#18345C] text-white rounded-md hover:bg-[#102747] transition-colors"
+            >
+              <PlusIcon /> Nuevo insumo
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Kpi valor={String(insumos.length)} label="Insumos" color="#18345C" />
+          <Kpi valor={String(bajoMinimo.length)} label="Bajo mínimo" color={bajoMinimo.length ? '#991B1B' : '#166534'} />
+          <Kpi valor={String(porVencer.length)} label={`Vencen ≤ ${DIAS_ALERTA_VENC} días`} color={porVencer.length ? '#9A3412' : '#166534'} />
+          <Kpi valor={dinero(valorTotal)} label="Valor del inventario" color="#18345C" />
+        </div>
+      </div>
+
+      {/* Alertas */}
+      {(bajoMinimo.length > 0 || porVencer.length > 0) && (
+        <div className="px-4 sm:px-6 pt-5 space-y-2">
+          {bajoMinimo.length > 0 && (
+            <div className="bg-[#FEF2F2] border border-[#FCA5A5] rounded-xl px-4 py-3">
+              <p className="text-[13px] font-semibold text-[#991B1B] flex items-center gap-2">
+                <AlertIcon /> Stock bajo mínimo ({bajoMinimo.length})
+              </p>
+              <p className="text-[13px] text-[#7F1D1D] mt-1">
+                {bajoMinimo.map(i => `${i.nombre} (${i.stock}/${i.stockMinimo})`).join(' · ')}
+              </p>
+            </div>
+          )}
+          {porVencer.length > 0 && (
+            <div className="bg-[#FFF7ED] border border-[#FDBA74] rounded-xl px-4 py-3">
+              <p className="text-[13px] font-semibold text-[#9A3412] flex items-center gap-2">
+                <AlertIcon /> Próximos a vencer ({porVencer.length})
+              </p>
+              <p className="text-[13px] text-[#7C2D12] mt-1">
+                {porVencer.map(i => `${i.nombre} (${diasHasta(i.vencimiento!)} días)`).join(' · ')}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {formMov && (
+        <div className="px-4 sm:px-6 pt-5">
+          <FormMovimiento
+            insumos={insumos}
+            onCancelar={() => setFormMov(false)}
+            onGuardar={(id, tipo, cant, motivo) => { onRegistrarMovimiento(id, tipo, cant, motivo); setFormMov(false); }}
+          />
+        </div>
+      )}
+      {formInsumo && (
+        <div className="px-4 sm:px-6 pt-5">
+          <FormInsumo onCancelar={() => setFormInsumo(false)} onGuardar={x => { onAgregarInsumo(x); setFormInsumo(false); }} />
+        </div>
+      )}
+
+      {/* Filtros */}
+      <div className="px-4 sm:px-6 pt-5 flex gap-2 flex-wrap">
+        <BotonFiltro activo={filtro === 'todas'} onClick={() => setFiltro('todas')}>Todas</BotonFiltro>
+        {CATEGORIA_INSUMO.map(c => (
+          <BotonFiltro key={c} activo={filtro === c} onClick={() => setFiltro(c)}>{c}</BotonFiltro>
+        ))}
+      </div>
+
+      {/* Tabla */}
+      <div className="px-4 sm:px-6 py-5">
+        <div className="bg-white border border-[#E5E0D8] rounded-xl overflow-hidden">
+          <div className="hidden sm:grid grid-cols-12 px-4 py-3 bg-[#F8F6F0] border-b border-[#E5E0D8] text-[11px] text-[#AEBCC1] uppercase tracking-widest font-medium">
+            <span className="col-span-4">Insumo</span>
+            <span className="col-span-3">Stock / mínimo</span>
+            <span className="col-span-2 text-right">Costo unit.</span>
+            <span className="col-span-2 text-right">Valor</span>
+            <span className="col-span-1 text-right">Vence</span>
+          </div>
+          <div className="divide-y divide-[#F0EBE3]">
+            {visibles.map(i => {
+              const bajo = i.stock <= i.stockMinimo;
+              const pct = Math.min(100, Math.round((i.stock / Math.max(1, i.stockMinimo * 1.5)) * 100));
+              const dias = i.vencimiento ? diasHasta(i.vencimiento) : null;
+              return (
+                <div key={i.id} className="grid grid-cols-2 sm:grid-cols-12 gap-y-2 px-4 py-3 items-center text-[13px]">
+                  <div className="col-span-2 sm:col-span-4">
+                    <p className="font-medium text-[#1F2933]">{i.nombre}</p>
+                    <p className="text-[12px] text-[#AEBCC1]">{i.categoria} · {i.unidad}</p>
+                  </div>
+                  <div className="col-span-2 sm:col-span-3">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${bajo ? 'text-[#991B1B]' : 'text-[#18345C]'}`}>{i.stock}</span>
+                      <span className="text-[#AEBCC1]">/ {i.stockMinimo}</span>
+                      {bajo && <Chip cls="bg-[#FEF2F2] text-[#991B1B] border-[#FCA5A5]">Bajo</Chip>}
+                    </div>
+                    <div className="h-1.5 bg-[#EEF0F2] rounded-full overflow-hidden mt-1 max-w-[160px]">
+                      <div className={`h-full rounded-full ${bajo ? 'bg-[#EF4444]' : 'bg-[#18345C]'}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                  <div className="col-span-1 sm:col-span-2 text-right text-[#6B7280]">{dinero(i.costoUnitario)}</div>
+                  <div className="col-span-1 sm:col-span-2 text-right font-medium text-[#18345C]">{dinero(i.stock * i.costoUnitario)}</div>
+                  <div className="col-span-2 sm:col-span-1 text-right text-[12px]">
+                    {dias === null ? (
+                      <span className="text-[#AEBCC1]">—</span>
+                    ) : (
+                      <span className={dias <= DIAS_ALERTA_VENC ? 'text-[#9A3412] font-semibold' : 'text-[#6B7280]'}>
+                        {dias}d
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Movimientos recientes */}
+        <div className="mt-6">
+          <h2 className="text-[16px] font-semibold text-[#18345C] mb-3">Movimientos recientes</h2>
+          <div className="bg-white border border-[#E5E0D8] rounded-xl divide-y divide-[#F0EBE3]">
+            {movRecientes.map(mv => (
+              <div key={mv.id} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
+                <Chip
+                  cls={
+                    mv.tipo === 'entrada'
+                      ? 'bg-[#F0FAF4] text-[#166534] border-[#86EFAC]'
+                      : mv.tipo === 'salida'
+                        ? 'bg-[#EFF6FF] text-[#1E40AF] border-[#93C5FD]'
+                        : 'bg-[#FEF2F2] text-[#991B1B] border-[#FCA5A5]'
+                  }
+                >
+                  {MOV_LABEL[mv.tipo]}
+                </Chip>
+                <span className="flex-1 min-w-0 text-[#1F2933] truncate">
+                  {insumoDe.get(mv.insumoId)?.nombre ?? 'Insumo'} · <span className="text-[#6B7280]">{mv.motivo}</span>
+                </span>
+                <span className="font-semibold text-[#18345C]">
+                  {mv.tipo === 'entrada' ? '+' : '−'}{mv.cantidad}
+                </span>
+                <span className="text-[12px] text-[#AEBCC1] hidden sm:block">{formatoFechaHora(mv.fecha)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FormMovimiento({
+  insumos,
+  onCancelar,
+  onGuardar,
+}: {
+  insumos: Insumo[];
+  onCancelar: () => void;
+  onGuardar: (insumoId: string, tipo: TipoMovimiento, cantidad: number, motivo: string) => void;
+}) {
+  const [insumoId, setInsumoId] = useState('');
+  const [tipo, setTipo] = useState<TipoMovimiento>('salida');
+  const [cantidad, setCantidad] = useState('1');
+  const [motivo, setMotivo] = useState('');
+  const [err, setErr] = useState('');
+
+  function guardar() {
+    if (!insumoId) return setErr('Selecciona un insumo.');
+    const c = Number(cantidad);
+    if (!c || c <= 0) return setErr('Cantidad inválida.');
+    if (!motivo.trim()) return setErr('Indica el motivo.');
+    onGuardar(insumoId, tipo, c, motivo.trim());
+  }
+
+  return (
+    <div className="bg-white border border-[#E5E0D8] rounded-xl p-4 space-y-3">
+      <p className="text-[14px] font-semibold text-[#18345C]">Registrar movimiento de stock</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Campo label="Insumo">
+          <select value={insumoId} onChange={e => { setInsumoId(e.target.value); setErr(''); }} className={INPUT_CLS}>
+            <option value="">Seleccionar…</option>
+            {insumos.map(i => <option key={i.id} value={i.id}>{i.nombre} (stock {i.stock})</option>)}
+          </select>
+        </Campo>
+        <Campo label="Tipo">
+          <select value={tipo} onChange={e => setTipo(e.target.value as TipoMovimiento)} className={INPUT_CLS}>
+            <option value="entrada">Entrada (compra / reposición)</option>
+            <option value="salida">Salida (consumo)</option>
+            <option value="merma">Merma (pérdida / vencido)</option>
+          </select>
+        </Campo>
+        <Campo label="Cantidad">
+          <input type="number" min="1" value={cantidad} onChange={e => { setCantidad(e.target.value); setErr(''); }} className={INPUT_CLS} />
+        </Campo>
+        <Campo label="Motivo">
+          <input type="text" value={motivo} onChange={e => { setMotivo(e.target.value); setErr(''); }} placeholder="Reposición pisos 2-3, consumo minibar…" className={INPUT_CLS} />
+        </Campo>
+      </div>
+      {err && <p className="text-xs text-[#991B1B]">{err}</p>}
+      <div className="flex gap-3">
+        <button onClick={onCancelar} className="flex-1 py-2.5 text-sm border border-[#E5E0D8] text-[#6B7280] rounded-md hover:bg-[#F8F6F0] transition-colors">Cancelar</button>
+        <button onClick={guardar} className="flex-1 py-2.5 text-sm font-semibold bg-[#18345C] text-white rounded-md hover:bg-[#102747] transition-colors">Guardar movimiento</button>
+      </div>
+    </div>
+  );
+}
+
+function FormInsumo({
+  onCancelar,
+  onGuardar,
+}: {
+  onCancelar: () => void;
+  onGuardar: (i: Omit<Insumo, 'id'>) => void;
+}) {
+  const [nombre, setNombre] = useState('');
+  const [categoria, setCategoria] = useState<CategoriaInsumo>('Lencería');
+  const [unidad, setUnidad] = useState('unidad');
+  const [stock, setStock] = useState('0');
+  const [stockMinimo, setStockMinimo] = useState('10');
+  const [costo, setCosto] = useState('');
+  const [vencimiento, setVencimiento] = useState('');
+  const [err, setErr] = useState('');
+
+  function guardar() {
+    if (!nombre.trim()) return setErr('El nombre es obligatorio.');
+    const c = Number(costo);
+    if (!c || c <= 0) return setErr('Costo unitario inválido.');
+    onGuardar({
+      nombre: nombre.trim(),
+      categoria,
+      unidad: unidad.trim() || 'unidad',
+      stock: Math.max(0, Number(stock) || 0),
+      stockMinimo: Math.max(0, Number(stockMinimo) || 0),
+      costoUnitario: Math.round(c * 100) / 100,
+      vencimiento: vencimiento || undefined,
+    });
+  }
+
+  return (
+    <div className="bg-white border border-[#E5E0D8] rounded-xl p-4 space-y-3">
+      <p className="text-[14px] font-semibold text-[#18345C]">Nuevo insumo</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Campo label="Nombre">
+          <input type="text" value={nombre} onChange={e => { setNombre(e.target.value); setErr(''); }} className={INPUT_CLS} />
+        </Campo>
+        <Campo label="Categoría">
+          <select value={categoria} onChange={e => setCategoria(e.target.value as CategoriaInsumo)} className={INPUT_CLS}>
+            {CATEGORIA_INSUMO.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Campo>
+        <Campo label="Unidad">
+          <input type="text" value={unidad} onChange={e => setUnidad(e.target.value)} className={INPUT_CLS} />
+        </Campo>
+        <Campo label="Costo unitario">
+          <input type="number" min="0" value={costo} onChange={e => { setCosto(e.target.value); setErr(''); }} placeholder="0.00" className={INPUT_CLS} />
+        </Campo>
+        <Campo label="Stock inicial">
+          <input type="number" min="0" value={stock} onChange={e => setStock(e.target.value)} className={INPUT_CLS} />
+        </Campo>
+        <Campo label="Stock mínimo">
+          <input type="number" min="0" value={stockMinimo} onChange={e => setStockMinimo(e.target.value)} className={INPUT_CLS} />
+        </Campo>
+        <Campo label="Vencimiento (opcional)">
+          <input type="date" value={vencimiento} onChange={e => setVencimiento(e.target.value)} className={INPUT_CLS} />
+        </Campo>
+      </div>
+      {err && <p className="text-xs text-[#991B1B]">{err}</p>}
+      <div className="flex gap-3">
+        <button onClick={onCancelar} className="flex-1 py-2.5 text-sm border border-[#E5E0D8] text-[#6B7280] rounded-md hover:bg-[#F8F6F0] transition-colors">Cancelar</button>
+        <button onClick={guardar} className="flex-1 py-2.5 text-sm font-semibold bg-[#18345C] text-white rounded-md hover:bg-[#102747] transition-colors">Guardar insumo</button>
+      </div>
+    </div>
+  );
+}
+
+function BotonFiltro({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`text-[13px] font-medium px-3 py-1.5 rounded-md border transition-colors ${
+        activo ? 'bg-[#18345C] text-white border-[#18345C]' : 'bg-white text-[#6B7280] border-[#E5E0D8] hover:bg-[#F8F6F0]'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Kpi({ valor, label, color }: { valor: string; label: string; color: string }) {
+  return (
+    <div className="bg-[#F8F6F0] border border-[#E5E0D8] rounded-lg px-3 py-2.5">
+      <p className="text-[20px] font-bold leading-none" style={{ color }}>{valor}</p>
+      <p className="text-[11px] text-[#6B7280] mt-1">{label}</p>
+    </div>
+  );
+}
