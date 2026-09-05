@@ -11,6 +11,7 @@ import RoomServiceApp from './screens/roomservice/RoomServiceApp';
 import RecepcionApp from './screens/recepcion/RecepcionApp';
 import AdminApp from './screens/admin/AdminApp';
 import MantenimientoApp from './screens/mantenimiento/MantenimientoApp';
+import HuespedApp from './screens/huesped/HuespedApp';
 import ModuloSwitcher from './screens/ModuloSwitcher';
 
 // ── Icons (reused for sidebar + bottom nav) ─────────────────────────────────
@@ -381,6 +382,10 @@ export default function App() {
 
   if (modulo === 'mantenimiento') {
     return <MantenimientoApp onCambiarModulo={setModulo} />;
+  }
+
+  if (modulo === 'huesped') {
+    return <HuespedApp onCambiarModulo={setModulo} />;
   }
 
   return (

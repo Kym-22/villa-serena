@@ -23,6 +23,17 @@ import type {
   Repuesto,
   EstadoOT,
   CambioEstadoOT,
+  OfertaHabitacion,
+  ServicioCatalogo,
+  PedidoHuesped,
+  MensajeChat,
+  Domotica,
+  TurnoAmenidad,
+  ReservaAmenidad,
+  CargoHuesped,
+  CheckInWeb,
+  DatosFiscales,
+  AreaAmenidad,
 } from "./types"
 
 /* =========================================================
@@ -1525,3 +1536,371 @@ export const ORDENES_INICIALES: OrdenTrabajo[] = [
     ),
   },
 ]
+
+/* =========================================================
+   HUÉSPED — CONFIGURACIÓN
+   Datos de la vista que usa el cliente desde su teléfono.
+   ========================================================= */
+
+// Huésped y reserva con los que arranca la demostración: Ana Morales,
+// habitación 101, estancia en curso. Se reutiliza la ficha que ya existe
+// en Recepción para que ambos módulos hablen del mismo cliente.
+export const HUESPED_DEMO_ID = "hu-ana"
+
+export const RESERVA_HUESPED_INICIAL: Reserva = {
+  ...RESERVAS_INICIALES.find((r) => r.id === "re-1")!,
+  estado: "en-curso",
+  fechaEntrada: fechaRelativaISO(-1),
+  fechaSalida: fechaRelativaISO(2),
+  checkInEn: fechaRelativaISO(-1) + "T15:10:00.000Z",
+}
+
+// Reservas del hotel con la estancia del huésped ya aplicada. Es la lista
+// contra la que se calcula la disponibilidad en el buscador (HU-01).
+export const RESERVAS_CON_HUESPED: Reserva[] = RESERVAS_INICIALES.map((r) =>
+  r.id === "re-1" ? RESERVA_HUESPED_INICIAL : r,
+)
+
+export const WIFI_RED = "VillaSerena_Huespedes"
+
+export const TELEFONO_RECEPCION = "+502 2456 7800"
+
+// Programa de fidelidad: 100 puntos equivalen a 1 unidad de la moneda.
+export const PUNTOS_FIDELIDAD_INICIALES = 28_500
+export const PUNTOS_POR_MONEDA = 100
+
+/* =========================================================
+   HUÉSPED — HU-01: OFERTA DE HABITACIONES
+   ========================================================= */
+
+const FOTOS_TIPO: Record<TipoHabitacion, string[]> = {
+  "Standard": [
+    "https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=800&h=520&fit=crop&auto=format",
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=520&fit=crop&auto=format",
+  ],
+  "Superior": [
+    "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=520&fit=crop&auto=format",
+    "https://images.unsplash.com/photo-1595576508898-0ad5c879a061?w=800&h=520&fit=crop&auto=format",
+  ],
+  "Deluxe": [
+    "https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&h=520&fit=crop&auto=format",
+    "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&h=520&fit=crop&auto=format",
+  ],
+  "Suite Deluxe": [
+    "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=520&fit=crop&auto=format",
+    "https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=800&h=520&fit=crop&auto=format",
+  ],
+  "Suite": [
+    "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&h=520&fit=crop&auto=format",
+    "https://images.unsplash.com/photo-1591088398332-8a7791972843?w=800&h=520&fit=crop&auto=format",
+  ],
+}
+
+export const OFERTAS_HABITACION: OfertaHabitacion[] = [
+  {
+    tipo: "Standard",
+    descripcion: "Habitación acogedora con cama matrimonial, escritorio y baño privado.",
+    capacidad: CAPACIDAD_TIPO["Standard"],
+    precioNoche: PRECIO_NOCHE_TIPO["Standard"],
+    metros: 22,
+    fotos: FOTOS_TIPO["Standard"],
+    amenidades: ["Wi-Fi de alta velocidad", "Aire acondicionado", "Televisión por cable", "Caja fuerte"],
+  },
+  {
+    tipo: "Superior",
+    descripcion: "Más espacio y vista al jardín interior, con zona de estar independiente.",
+    capacidad: CAPACIDAD_TIPO["Superior"],
+    precioNoche: PRECIO_NOCHE_TIPO["Superior"],
+    metros: 28,
+    fotos: FOTOS_TIPO["Superior"],
+    amenidades: ["Wi-Fi de alta velocidad", "Vista al jardín", "Cafetera", "Escritorio de trabajo"],
+  },
+  {
+    tipo: "Deluxe",
+    descripcion: "Habitación amplia con balcón privado y baño con tina.",
+    capacidad: CAPACIDAD_TIPO["Deluxe"],
+    precioNoche: PRECIO_NOCHE_TIPO["Deluxe"],
+    metros: 35,
+    fotos: FOTOS_TIPO["Deluxe"],
+    amenidades: ["Balcón privado", "Tina de baño", "Minibar", "Batas y pantuflas"],
+  },
+  {
+    tipo: "Suite Deluxe",
+    descripcion: "Dormitorio y sala separados, ideal para familias o estancias largas.",
+    capacidad: CAPACIDAD_TIPO["Suite Deluxe"],
+    precioNoche: PRECIO_NOCHE_TIPO["Suite Deluxe"],
+    metros: 48,
+    fotos: FOTOS_TIPO["Suite Deluxe"],
+    amenidades: ["Sala independiente", "Dos televisores", "Minibar", "Servicio de mayordomía"],
+  },
+  {
+    tipo: "Suite",
+    descripcion: "La mejor vista del hotel, con terraza, jacuzzi y desayuno incluido.",
+    capacidad: CAPACIDAD_TIPO["Suite"],
+    precioNoche: PRECIO_NOCHE_TIPO["Suite"],
+    metros: 62,
+    fotos: FOTOS_TIPO["Suite"],
+    amenidades: ["Terraza privada", "Jacuzzi", "Desayuno incluido", "Check-out tardío"],
+  },
+]
+
+// Correlativos propios del portal del huésped.
+let _correlativoReservaWeb = 1200
+export function siguienteCodigoReservaWeb(): string {
+  _correlativoReservaWeb += 1
+  return `RES-${_correlativoReservaWeb}`
+}
+
+/* =========================================================
+   HUÉSPED — HU-02: CHECK-IN WEB
+   ========================================================= */
+
+export const PETICIONES_ESPECIALES = [
+  "Cama adicional",
+  "Piso alto",
+  "Habitación silenciosa",
+  "Almohadas extra",
+  "Cuna para bebé",
+  "Llegada tardía",
+  "Habitación comunicada",
+  "Adaptada para movilidad reducida",
+]
+
+export const TERMINOS_ESTANCIA = [
+  "Autorizo el uso de mis datos personales para el registro de huéspedes exigido por la ley.",
+  "Acepto que los consumos de restaurante, room service y servicios se carguen a la cuenta de mi habitación.",
+  "Me comprometo a respetar el horario de silencio entre las 22:00 y las 07:00 horas.",
+  "Reconozco que los daños ocasionados al mobiliario serán cargados a mi cuenta al momento del check-out.",
+]
+
+// El check-in arranca disponible: la ventana de 24 horas ya está abierta y
+// el huésped todavía no tiene su llave digital.
+export const CHECKIN_INICIAL: CheckInWeb = {
+  estado: "disponible",
+  documento: null,
+  firma: null,
+  peticiones: [],
+  notaPeticiones: "",
+}
+
+export function codigoLlaveDigital(codigoReserva: string, habitacion: string): string {
+  return `VS-${codigoReserva}-${habitacion}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+}
+
+/* =========================================================
+   HUÉSPED — HU-03: SERVICIOS Y PEDIDOS
+   ========================================================= */
+
+export const SERVICIOS_CATALOGO: ServicioCatalogo[] = [
+  { id: "sv-toallas", nombre: "Toallas extra", descripcion: "Juego de dos toallas de baño limpias.", categoria: "Habitación", precio: 0, minutosEstimados: 20 },
+  { id: "sv-almohadas", nombre: "Almohadas adicionales", descripcion: "Almohada suave o firme, a elección.", categoria: "Habitación", precio: 0, minutosEstimados: 20 },
+  { id: "sv-amenities", nombre: "Reposición de amenidades", descripcion: "Jabón, champú y kit dental.", categoria: "Habitación", precio: 0, minutosEstimados: 25 },
+  { id: "sv-agua", nombre: "Botellas de agua", descripcion: "Dos botellas de 500 ml.", categoria: "Habitación", precio: 2, minutosEstimados: 15 },
+  { id: "sv-limpieza", nombre: "Limpieza de habitación", descripcion: "Limpieza completa mientras estás fuera.", categoria: "Limpieza", precio: 0, minutosEstimados: 45 },
+  { id: "sv-cama", nombre: "Cambio de ropa de cama", descripcion: "Sábanas y fundas limpias.", categoria: "Limpieza", precio: 0, minutosEstimados: 30 },
+  { id: "sv-lavanderia", nombre: "Servicio de lavandería", descripcion: "Recogida hoy, entrega mañana antes del mediodía.", categoria: "Limpieza", precio: 12, minutosEstimados: 30 },
+  { id: "sv-planchado", nombre: "Planchado express", descripcion: "Hasta cinco prendas en dos horas.", categoria: "Limpieza", precio: 8, minutosEstimados: 30 },
+  { id: "sv-masaje", nombre: "Masaje en la habitación", descripcion: "Sesión relajante de 50 minutos.", categoria: "Bienestar", precio: 60, minutosEstimados: 60 },
+  { id: "sv-yoga", nombre: "Kit de yoga", descripcion: "Tapete, bloque y cinta.", categoria: "Bienestar", precio: 0, minutosEstimados: 25 },
+  { id: "sv-taxi", nombre: "Transporte al aeropuerto", descripcion: "Vehículo privado, hasta cuatro personas.", categoria: "Recepción", precio: 25, minutosEstimados: 40 },
+  { id: "sv-despertador", nombre: "Llamada de despertador", descripcion: "Indica la hora en la nota del pedido.", categoria: "Recepción", precio: 0, minutosEstimados: 10 },
+]
+
+export const ALERGIAS_FRECUENTES = ["Frutos secos", "Gluten", "Lactosa", "Mariscos", "Huevo", "Soya"]
+
+let _correlativoPedidoHuesped = 2400
+export function siguienteNumeroPedidoHuesped(): number {
+  _correlativoPedidoHuesped += 1
+  return _correlativoPedidoHuesped
+}
+
+function haceMin(min: number): string {
+  return new Date(Date.now() - min * 60_000).toISOString()
+}
+
+export const PEDIDOS_HUESPED_INICIALES: PedidoHuesped[] = [
+  {
+    id: "ph-1",
+    numero: 2400,
+    tipo: "restaurante",
+    lineas: [
+      { refId: "m-club", nombre: "Club sándwich", precioUnitario: 9.5, cantidad: 1 },
+      { refId: "m-jugo", nombre: "Jugo natural de naranja", precioUnitario: 3.5, cantidad: 2 },
+    ],
+    nota: "Sin mayonesa, por favor.",
+    alergias: "Frutos secos",
+    estado: "en-preparacion",
+    minutosEstimados: 35,
+    creadoEn: haceMin(12),
+    historial: [
+      { estado: "recibido", fechaHora: haceMin(12) },
+      { estado: "en-preparacion", fechaHora: haceMin(7) },
+    ],
+  },
+  {
+    id: "ph-2",
+    numero: 2399,
+    tipo: "servicio",
+    lineas: [{ refId: "sv-toallas", nombre: "Toallas extra", precioUnitario: 0, cantidad: 2 }],
+    nota: "",
+    alergias: "",
+    estado: "entregado",
+    minutosEstimados: 20,
+    creadoEn: haceMin(180),
+    entregadoEn: haceMin(158),
+    historial: [
+      { estado: "recibido", fechaHora: haceMin(180) },
+      { estado: "en-preparacion", fechaHora: haceMin(174) },
+      { estado: "en-camino", fechaHora: haceMin(165) },
+      { estado: "entregado", fechaHora: haceMin(158) },
+    ],
+  },
+]
+
+export const MENSAJES_CHAT_INICIALES: MensajeChat[] = [
+  {
+    id: "ch-1",
+    autor: "recepcion",
+    texto: "Buenos días, Ana. Bienvenida a Villa Serena. Estamos a su disposición por este chat las 24 horas.",
+    hora: haceMin(240),
+  },
+  {
+    id: "ch-2",
+    autor: "huesped",
+    texto: "Gracias. ¿A qué hora abre el restaurante para el desayuno?",
+    hora: haceMin(235),
+  },
+  {
+    id: "ch-3",
+    autor: "recepcion",
+    texto: "El desayuno se sirve de 6:30 a 10:30 en el salón principal, y también puede pedirlo a la habitación desde el portal.",
+    hora: haceMin(233),
+  },
+]
+
+// Respuestas automáticas de recepción para simular la mensajería en vivo.
+export const RESPUESTAS_RECEPCION = [
+  "Con gusto, lo gestionamos de inmediato y le confirmamos por este medio.",
+  "Enseguida trasladamos su solicitud al área correspondiente.",
+  "Anotado. En unos minutos le confirmamos la hora exacta.",
+  "Gracias por avisarnos. Un compañero se comunicará con usted en breve.",
+]
+
+/* =========================================================
+   HUÉSPED — HU-04: DOMÓTICA Y AMENIDADES
+   ========================================================= */
+
+export const DOMOTICA_INICIAL: Domotica = {
+  climaEncendido: true,
+  temperatura: 22,
+  luces: [
+    { id: "lz-general", nombre: "Luz general", encendida: true, intensidad: 70 },
+    { id: "lz-noche", nombre: "Lámparas de noche", encendida: false, intensidad: 40 },
+    { id: "lz-bano", nombre: "Baño", encendida: false, intensidad: 100 },
+    { id: "lz-ambiente", nombre: "Luz de ambiente", encendida: true, intensidad: 25 },
+  ],
+  cortinas: 60,
+  noMolestar: false,
+  hacerHabitacion: false,
+  wifiConectado: false,
+}
+
+export const AMENIDADES_CONFIG: {
+  area: AreaAmenidad
+  descripcion: string
+  horas: string[]
+  aforo: number
+}[] = [
+  { area: "Spa", descripcion: "Circuito de aguas y sala de masajes.", horas: ["10:00", "12:00", "14:00", "16:00", "18:00"], aforo: 2 },
+  { area: "Gimnasio", descripcion: "Equipo cardiovascular y de fuerza.", horas: ["06:00", "08:00", "10:00", "16:00", "18:00", "20:00"], aforo: 8 },
+  { area: "Cancha de tenis", descripcion: "Cancha iluminada, raquetas incluidas.", horas: ["08:00", "10:00", "16:00", "18:00"], aforo: 4 },
+  { area: "Restaurante Mirador", descripcion: "Cena temática con vista al valle.", horas: ["19:00", "20:00", "21:00"], aforo: 12 },
+  { area: "Piscina", descripcion: "Piscina climatizada con área de descanso.", horas: ["09:00", "11:00", "15:00", "17:00"], aforo: 15 },
+]
+
+// Ocupación de partida estable: se deriva del identificador del turno para que
+// la demostración no cambie de cifras en cada renderizado.
+function ocupacionBase(id: string, aforo: number): number {
+  let h = 0
+  for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 997
+  return h % (aforo + 1)
+}
+
+export const TURNOS_AMENIDAD_INICIALES: TurnoAmenidad[] = AMENIDADES_CONFIG.flatMap((cfg) =>
+  [0, 1, 2].flatMap((dia) =>
+    cfg.horas.map((hora) => {
+      const fecha = fechaRelativaISO(dia)
+      const id = `tu-${cfg.area}-${fecha}-${hora}`
+      return {
+        id,
+        area: cfg.area,
+        fecha,
+        hora,
+        aforo: cfg.aforo,
+        ocupados: ocupacionBase(id, cfg.aforo),
+      }
+    }),
+  ),
+)
+
+export const RESERVAS_AMENIDAD_INICIALES: ReservaAmenidad[] = []
+
+/* =========================================================
+   HUÉSPED — HU-05: CUENTA Y FACTURACIÓN
+   ========================================================= */
+
+export const CARGOS_HUESPED_INICIALES: CargoHuesped[] = [
+  {
+    id: "cg-1",
+    concepto: "Cena buffet",
+    categoria: "Restaurante",
+    cantidad: 2,
+    precioUnitario: 28,
+    fecha: fechaRelativaISO(-1) + "T21:15:00.000Z",
+  },
+  {
+    id: "cg-2",
+    concepto: "Minibar — agua y snacks",
+    categoria: "Servicios",
+    cantidad: 1,
+    precioUnitario: 9.5,
+    fecha: fechaRelativaISO(-1) + "T23:40:00.000Z",
+  },
+  {
+    id: "cg-4",
+    concepto: "Club sándwich (pedido #2400)",
+    categoria: "Room service",
+    cantidad: 1,
+    precioUnitario: 9.5,
+    fecha: fechaRelativaISO(0) + "T12:30:00.000Z",
+  },
+  {
+    id: "cg-5",
+    concepto: "Jugo natural de naranja (pedido #2400)",
+    categoria: "Room service",
+    cantidad: 2,
+    precioUnitario: 3.5,
+    fecha: fechaRelativaISO(0) + "T12:30:00.000Z",
+  },
+  {
+    id: "cg-3",
+    concepto: "Estacionamiento",
+    categoria: "Servicios",
+    cantidad: 2,
+    precioUnitario: 8,
+    fecha: fechaRelativaISO(0) + "T08:00:00.000Z",
+  },
+]
+
+export const DATOS_FISCALES_INICIALES: DatosFiscales = {
+  nombre: "",
+  nit: "",
+  direccion: "",
+  correo: "",
+}
+
+let _correlativoFEL = 0
+export function siguienteFacturaFEL(): string {
+  _correlativoFEL += 1
+  return `FEL-${String(_correlativoFEL).padStart(4, "0")}`
+}

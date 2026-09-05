@@ -77,7 +77,7 @@ export type Pantalla = 'inicio' | 'mapa' | 'solicitudes' | 'incidencias' | 'obje
    ROOM SERVICE
    ========================================================= */
 
-export type Modulo = 'limpieza' | 'roomservice' | 'recepcion' | 'admin' | 'mantenimiento';
+export type Modulo = 'limpieza' | 'roomservice' | 'recepcion' | 'admin' | 'mantenimiento' | 'huesped';
 
 export type EstadoPedido =
   | 'nuevo'
@@ -453,4 +453,210 @@ export interface TareaPreventiva {
   proximaEjecucion: string; // YYYY-MM-DD
   ultimaEjecucion?: string; // YYYY-MM-DD
   activa: boolean;
+}
+
+/* =========================================================
+   HUÉSPED
+   Vista que usa el cliente del hotel desde su propio teléfono.
+   Cubre HU-01 (reserva), HU-02 (check-in web), HU-03 (servicios),
+   HU-04 (confort y amenidades) y HU-05 (cuenta y check-out).
+   ========================================================= */
+
+export type SeccionHuesped =
+  | 'inicio'
+  | 'reservar'
+  | 'checkin'
+  | 'servicios'
+  | 'habitacion'
+  | 'cuenta';
+
+// --- HU-01: oferta pública de habitaciones ---
+
+export interface OfertaHabitacion {
+  tipo: TipoHabitacion;
+  descripcion: string;
+  capacidad: number;
+  precioNoche: number;
+  metros: number;
+  fotos: string[];
+  amenidades: string[];
+}
+
+export interface DatosContacto {
+  nombre: string;
+  correo: string;
+  telefono: string;
+  documento: string;
+}
+
+export interface ReservaHuesped {
+  codigo: string;
+  tipo: TipoHabitacion;
+  fechaEntrada: string; // YYYY-MM-DD
+  fechaSalida: string; // YYYY-MM-DD
+  personas: number;
+  noches: number;
+  precioNoche: number;
+  total: number;
+  contacto: DatosContacto;
+  ultimos4: string;
+  creadaEn: string; // ISO
+}
+
+// --- HU-02: check-in web anticipado ---
+
+export type EstadoCheckInWeb = 'disponible' | 'completado';
+
+export type FormatoDocumento = 'JPG' | 'PDF';
+
+export interface DocumentoCargado {
+  nombre: string;
+  formato: FormatoDocumento;
+  pesoKb: number;
+}
+
+export interface CheckInWeb {
+  estado: EstadoCheckInWeb;
+  documento: DocumentoCargado | null;
+  firma: string | null; // trazo del canvas de firma (data URL)
+  peticiones: string[];
+  notaPeticiones: string;
+  completadoEn?: string; // ISO
+  codigoLlave?: string; // contenido que representa el QR de acceso
+}
+
+// --- HU-03: portal de servicios y pedidos ---
+
+export type CategoriaServicioHuesped =
+  | 'Habitación'
+  | 'Limpieza'
+  | 'Bienestar'
+  | 'Recepción';
+
+export interface ServicioCatalogo {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  categoria: CategoriaServicioHuesped;
+  precio: number; // 0 = sin costo adicional
+  minutosEstimados: number;
+}
+
+export type EstadoPedidoHuesped =
+  | 'recibido'
+  | 'en-preparacion'
+  | 'en-camino'
+  | 'entregado'
+  | 'cancelado';
+
+export type TipoPedidoHuesped = 'restaurante' | 'servicio';
+
+export interface LineaPedidoHuesped {
+  refId: string;
+  nombre: string;
+  precioUnitario: number;
+  cantidad: number;
+}
+
+export interface PedidoHuesped {
+  id: string;
+  numero: number;
+  tipo: TipoPedidoHuesped;
+  lineas: LineaPedidoHuesped[];
+  nota: string;
+  alergias: string;
+  estado: EstadoPedidoHuesped;
+  minutosEstimados: number;
+  creadoEn: string; // ISO
+  entregadoEn?: string; // ISO
+  historial: { estado: EstadoPedidoHuesped; fechaHora: string }[];
+}
+
+export interface MensajeChat {
+  id: string;
+  autor: 'huesped' | 'recepcion';
+  texto: string;
+  hora: string; // ISO
+}
+
+// --- HU-04: domótica y amenidades ---
+
+export interface Luz {
+  id: string;
+  nombre: string;
+  encendida: boolean;
+  intensidad: number; // 0–100
+}
+
+export interface Domotica {
+  climaEncendido: boolean;
+  temperatura: number; // °C
+  luces: Luz[];
+  cortinas: number; // % de apertura
+  noMolestar: boolean;
+  hacerHabitacion: boolean;
+  wifiConectado: boolean;
+}
+
+export type AreaAmenidad =
+  | 'Spa'
+  | 'Gimnasio'
+  | 'Cancha de tenis'
+  | 'Restaurante Mirador'
+  | 'Piscina';
+
+export interface TurnoAmenidad {
+  id: string;
+  area: AreaAmenidad;
+  fecha: string; // YYYY-MM-DD
+  hora: string; // HH:MM
+  aforo: number;
+  ocupados: number;
+}
+
+export interface ReservaAmenidad {
+  id: string;
+  turnoId: string;
+  area: AreaAmenidad;
+  fecha: string;
+  hora: string;
+  personas: number;
+  creadaEn: string; // ISO
+}
+
+// --- HU-05: cuenta, factura y check-out ---
+
+export type CategoriaCargo =
+  | 'Estancia'
+  | 'Restaurante'
+  | 'Room service'
+  | 'Servicios'
+  | 'Amenidades';
+
+export interface CargoHuesped {
+  id: string;
+  concepto: string;
+  categoria: CategoriaCargo;
+  cantidad: number;
+  precioUnitario: number;
+  fecha: string; // ISO
+}
+
+export type MetodoPagoHuesped = 'tarjeta' | 'debito' | 'puntos';
+
+export interface DatosFiscales {
+  nombre: string;
+  nit: string;
+  direccion: string;
+  correo: string;
+}
+
+export interface PagoHuespedApp {
+  id: string;
+  monto: number;
+  metodo: MetodoPagoHuesped;
+  fecha: string; // ISO
+  comprobante: string; // FEL-0001
+  ultimos4?: string;
+  puntosUsados?: number;
 }
